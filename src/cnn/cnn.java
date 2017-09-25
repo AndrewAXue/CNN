@@ -21,7 +21,7 @@ public class cnn {
 	
 	JFrame window = new JFrame("VISUALIZATION");
 	JFrame weights_window = new JFrame("VISUALIZATION V2");
-	boolean draw = true;
+	boolean draw = false;
 	DecimalFormat round = new DecimalFormat("#.##");
 	
 static Scanner scanner;
@@ -77,7 +77,8 @@ static Scanner scanner;
 	
 	
 	
-	boolean debug = true;
+	boolean debug = false;
+	boolean sig = true;
 	
 	
 	
@@ -101,7 +102,7 @@ static Scanner scanner;
 		double weight;
 		double weightdev=0;
 		weightclass(){
-			weight = weightchoose.nextDouble();
+			weight = weightchoose.nextDouble()*10-5;
 		}
 		weightclass(weightclass copy){
 			weight = copy.weight;
@@ -193,7 +194,7 @@ static Scanner scanner;
 	//cnn_layerclass two_pool;
 	
 	cnn(int temp_data_depths[],int temp_data_width_heights[],String temp_layer_types[],int temp_layer_depths[],int temp_layer_width_heights[]){
-		if (draw) create_window();
+
 		
 		data_depths = new int[temp_data_depths.length];
 		data_width_heights = new int[temp_data_width_heights.length];
@@ -253,7 +254,6 @@ static Scanner scanner;
 						temp_matrix_values,0,conv_stride,conv_pad,"");
 				cnn_layerclass cur = cnn_layers[i];
 				if (debug){
-					System.out.println("HI");
 					if (i==0){
 						double test_weights[][][][] = {
 								{
@@ -305,6 +305,7 @@ static Scanner scanner;
 				
 			}
 		}
+		if (draw) create_window();
 	}
 	
 	// sigmoid function for "smoothing out" the output values
@@ -340,12 +341,13 @@ static Scanner scanner;
 		for (int i=0;i<data.length-1;i++){
 			cnn_layerclass layer_props = cnn_layers[i];
 			if (layer_props.function.compareTo("conv")==0){
-				for (int a=0;a<layer_props.depth;a++){
+				for (int a=0;a<data_depths[i+1];a++){
 					for (int b=0;b<data_width_heights[i+1];b++){
 						for (int c=0;c<data_width_heights[i+1];c++){
 							int height = b*layer_props.stride-layer_props.zero_padding;
 							int width = c*layer_props.stride-layer_props.zero_padding;
 							double sum = 0;
+							//System.out.println("new sum target "+(i+1)+" "+a+" "+b+" "+c);
 							for (int d=0;d<data_depths[i];d++){
 								for (int e=0;e<layer_width_heights[i];e++){
 									for (int f=0;f<layer_width_heights[i];f++){
@@ -360,6 +362,7 @@ static Scanner scanner;
 											//for (int d=0;d<data_depths[i];d++)
 												sum+=data[i][d][final_height][final_width].y_value*layer_props.matrix_values[a][d][e][f].weight;
 										}
+										//System.out.println("summed "+i+" "+d+" "+final_height+" "+final_width+" to "+sum);
 										//System.out.println("ind is "+a+" "+b+" "+c+" "+sum);
 									}
 			
@@ -369,9 +372,11 @@ static Scanner scanner;
 							}
 							//System.out.println((i+1)+" "+a+" "+b+" "+c);
 							sum+=layer_props.bias;
+							//System.out.println("total sum is "+sum);
 							data[i+1][a][b][c].x_value = sum;
 							data[i+1][a][b][c].y_value = sum;
-							if (!debug) data[i+1][a][b][c].y_value = sigmoid(sum);							
+							if (sig) data[i+1][a][b][c].y_value = sigmoid(sum);							
+							
 						}
 					}
 				}
@@ -390,15 +395,16 @@ static Scanner scanner;
 							for (int z=0;z<layer_props.matrix_width_height;z++){
 								for (int c=0;c<layer_props.matrix_width_height;c++){
 									if (!max_inited){
-										max = data[i][k][init_x+z][init_y+c].y_value;
+										max = data[i][k][init_x+z][init_y+c].x_value;
 										max_inited = true;
 									}
-									else if (data[i][k][init_x+z][init_y+c].y_value>max){
-										max = data[i][k][init_x+z][init_y+c].y_value;
+									else if (data[i][k][init_x+z][init_y+c].x_value>max){
+										max = data[i][k][init_x+z][init_y+c].x_value;
 									}
 								}
 							}
-							data[i+1][k][a][b].y_value = max;
+							data[i+1][k][a][b].x_value = max;
+							data[i+1][k][a][b].y_value = sigmoid(max);
 						}
 					}
 				}
@@ -406,25 +412,29 @@ static Scanner scanner;
 		}
 	}
 	
-	double[][] cnn_get_output(){
-		double output[][] = new double[data_width_heights[data_width_heights.length-1]][data_width_heights[data_width_heights.length-1]];
+	double[][][] cnn_get_output(){
+		int last_depth = data_depths[data.length-1];
+		int last_width_height = data_width_heights[data.length-1];
+		double output[][][] = new double[last_depth][last_width_height][last_width_height];
 	
-		for (int k=0;k<data_width_heights[data_width_heights.length-1];k++){
-			for (int z=0;z<data_width_heights[data_width_heights.length-1];z++){
-				output[k][z] = data[data_width_heights.length-1][0][k][z].y_value;
+		for (int a=0;a<last_depth;a++){
+			for (int b=0;b<last_width_height;b++){
+				for (int c=0;c<last_width_height;c++){
+					output[a][b][c] = data[data.length-1][a][b][c].y_value;
+				}
 			}
 		}
 		return output;
 	}
 	
-	double cnn_learning_rate=0.3;
-	int batch_size;
+	double cnn_learning_rate=1;
+	int batch_size = 100;
 	
-	void cnn_gradient_descent(){
+	void cnn_gradient_descent(double cnn_learning_rate,int batch_size){
 		for (int a=0;a<data.length;a++){
-			for (int b=0;b<data[a].length;b++){
-				for (int c=0;c<data[a][b].length;c++){
-					for (int d=0;d<data[a][b][c].length;d++){
+			for (int b=0;b<data_depths[a];b++){
+				for (int c=0;c<data_width_heights[a];c++){
+					for (int d=0;d<data_width_heights[a];d++){
 						data[a][b][c][d].x_dev = 0;
 						data[a][b][c][d].y_dev = 0;
 					}
@@ -450,19 +460,27 @@ static Scanner scanner;
 	}
 	
 	void cnn_back_propagate(double last_layer_error[]){
+		int last_depth = data_depths[data.length-1];
+		int last_width = data_width_heights[data.length-1];
+		
+		int ind = 0;
+		
+		for (int a=0;a<last_depth;a++){
+			for (int b=0;b<last_width;b++){
+				for (int c=0;c<last_width;c++){
+					data[data.length-1][a][b][c].x_dev = last_layer_error[ind];
+					ind++;
+				}
+			}
+		}
+		
 		for (int a=0;a<data_width_heights[data_width_heights.length-1];a++){
 			for (int b=0;b<data_width_heights[data_width_heights.length-1];b++){
 				data[data.length-1][0][a][b].x_dev = last_layer_error[a*data_width_heights[data_width_heights.length-1]+b];
 				//data[data.length-1][0][a][b].y_dev = null;
 			}
 		}
-		/*
-		int data_depths[];
-		int data_width_heights[];
-		int layer_depths[];
-		int layer_width_heights[];
-		*/
-		// Only ydevs
+		// Only ydevs and xdevs
 		for (int a=data_width_heights.length-1;a>=1;a--){
 			cnn_layerclass active_layer = cnn_layers[a-1];
 			if (cnn_layers[a-1].function.compareTo("conv")==0){
@@ -470,18 +488,25 @@ static Scanner scanner;
 					for (int c=0;c<data_width_heights[a];c++){
 						for (int d=0;d<data_width_heights[a];d++){
 							// Found correct active_dev
+							//System.out.println(a+" "+b+" "+c+" "+d+" "+data[a][b][c][d].x_dev);
 							double active_dev = data[a][b][c][d].x_dev;
 							if (active_dev!=0){
 								int init_x = -active_layer.zero_padding+d*active_layer.stride;
 								int init_y = -active_layer.zero_padding+c*active_layer.stride;
+								//System.out.println(a+" "+b+" "+c+" "+d+" "+data[a][b][c][d].x_dev+" "+init_x+" "+init_y);
 								int solved_x,solved_y;
 								for (int e=0;e<data_depths[a-1];e++){
 									for (int f=0;f<layer_width_heights[a-1];f++){
 										for (int g=0;g<layer_width_heights[a-1];g++){
 											solved_x = init_x+g;
 											solved_y = init_y+f;
+											//System.out.println(e+" "+solved_y+" "+solved_x);
 											if (solved_x>=0&&solved_x<data_width_heights[a-1]&&solved_y>=0&&solved_y<data_width_heights[a-1]){
 												data[a-1][e][solved_y][solved_x].y_dev+=active_dev*active_layer.matrix_values[b][e][f][g].weight;
+												//System.out.println(data[a-1][e][solved_y][solved_x].y_dev);
+											}
+											else{
+												//System.out.println("OUT");
 											}
 										}
 									}
@@ -491,6 +516,7 @@ static Scanner scanner;
 						}
 					}
 				}
+				// Consolidating 
 				for (int b=0;b<data_depths[a-1];b++){
 					for (int c=0;c<data_width_heights[a-1];c++){
 						for (int d=0;d<data_width_heights[a-1];d++){
@@ -521,127 +547,40 @@ static Scanner scanner;
 				}
 			}
 		}
-		/*
-		//NBP1
-		for (int a=0;a<data_width_heights[data_width_heights.length-1];a++){
-			for (int b=0;b<data_width_heights[data_width_heights.length-1];b++){
-				data[data.length-1][0][a][b].x_dev = last_layer_error[a*data_width_heights[data_width_heights.length-1]+b];
-				//data[data.length-1][0][a][b].y_dev = null;
-			}
-		}
 		
-		for (int i=data_depths.length-2;i>=0;i--){
-			cnn_layerclass layer_props = cnn_layers[i];
-			if (layer_props.function.compareTo("pool")==0){
-				for (int k=0;k<data_depths[i+1];k++){
-					for (int a=0;a<data_width_heights[i+1];a++){
-						for (int b=0;b<data_width_heights[i+1];b++){
-							int init_x = a*layer_props.stride;
-							int init_y = b*layer_props.stride;
-							
-							for (int z=0;z<layer_props.matrix_width_height;z++){
-								for (int c=0;c<layer_props.matrix_width_height;c++){
-									//System.out.println(i+" "+k+" "+(init_x+z)+" "+(init_y+c));
-									if (data[i][k][init_x+z][init_y+c].y_value==data[i+1][k][a][b].y_value){
-										data[i][k][init_x+z][init_y+c].y_dev += data[i+1][k][a][b].y_dev;
-										data[i][k][init_x+z][init_y+c].x_dev += data[i][k][init_x+z][init_y+c].y_dev*sigmoidprime(data[i][k][init_x+z][init_y+c].y_value);
+		/*
+		int data_depths[];
+		int data_width_heights[];
+		int layer_depths[];
+		int layer_width_heights[];
+		
+		cnn_layers
+		
+		// matrix_values[depth][numperdepth = data_depths[i]][height][width]
+		*/
+		//Finding weight devs
+		/*
+		for (int a=cnn_layers.length-1;a>=0;a--){
+			cnn_layerclass active_layer = cnn_layers[a];
+			if (active_layer.function.compareTo("conv")==0){
+				for (int b=0;b<active_layer.depth;b++){
+					for (int c=0;c<data_depths[a];c++){
+						for (int d=0;d<active_layer.matrix_width_height;d++){
+							for (int e=0;e<active_layer.matrix_width_height;e++){
+								weightclass active_weight = cnn_layers[a].matrix_values[b][c][d][e];
+								
+								int init_x = -cnn_layers[a].zero_padding+e;
+								int init_y = -cnn_layers[a].zero_padding+d;
+								
+								System.out.println("weight "+active_weight.weight+" "+init_x+" "+init_y);
+								
+								for (int f=0;f<data_width_heights[a+1];f++){
+									for (int g=0;g<data_width_heights[a+1];g++){
+										active_weight.weightdev+=
+										init_x+=cnn_layers[a].matrix_width_height;
+										init_y+=cnn_layers[a].matrix_width_height;
 									}
 								}
-							}
-						}
-					}
-				}
-			}
-			else if (layer_props.function.compareTo("conv")==0){
-				
-				for (int k=0;k<data_depths[i];k++){
-					for (int a=0;a<data_width_heights[i];a++){
-						for (int b=0;b<data_width_heights[i];b++){
-							cnn_nodeclass active = data[i][k][a][b];
-							double sum_y_dev = 0;
-							for (int e=0;e<data_depths[i+1];e++){
-								for (int c=0;c<cnn_layers[i].matrix_width_height;c++){
-									for (int d=0;d<cnn_layers[i].matrix_width_height;d++){
-										//System.out.println((i+1)+" "+e+" "+(a-c)+" "+(b-d));
-										if (a-c>=0&&b-d>=0&&a-c<data[i+1][e].length&&b-d<data[i+1][e][a-c].length)sum_y_dev+=data[i+1][e][a-c][b-d].x_dev*cnn_layers[i].matrix_values[e][k][c][d].weight;
-									}
-								}
-							}
-							
-							active.y_dev += sum_y_dev;
-							active.x_dev += sum_y_dev*sigmoidprime(active.x_value);
-						}
-					}
-				}
-				
-				/*
-				for (int k=0;k<data_depths[i+1];k++){
-					for (int j=0;j<data_depths[i];j++){
-						for (int a=0;a<data_width_heights[i+1];a++){
-							for (int b=0;b<data_width_heights[i+1];b++){
-								cnn_nodeclass active = data[i][k][a][b];
-								double sum_y_dev = 0;
-								for (int c=0;c<cnn_layers[i].matrix_width_height;c++){
-									for (int d=0;d<cnn_layers[i].matrix_width_height;d++){
-										//System.out.println((b-d)+" "+i+" "+k+" ");
-										if (a-c>=0&&b-d>=0){
-											//System.out.println(data[i+1][k][a-c].length+" "+(b-d)+" "+i+" "+k+" ");
-											//System.out.println(a+" "+b);
-											sum_y_dev+=data[i+1][k][a-c][b-d].x_dev*
-													cnn_layers[i]
-															.matrix_values[k][j][c][d].weight;
-										}
-									}
-								}
-								active.y_dev += sum_y_dev;
-								active.x_dev += sum_y_dev*sigmoidprime(active.x_value);
-							}
-						}
-					}
-				}
-				*/
-				/*
-				for (int k=0;k<layer_depths[i];k++){
-					//matrix_values[depth][num matrix per depth][height][width]
-					for (int a=0;a<data_depths[i+1];a++){
-						for (int b=0;b<cnn_layers[i].matrix_width_height;b++){
-							for (int c=0;c<cnn_layers[i].matrix_width_height;c++){
-								//System.out.println(k+" "+a+" "+b+" "+c);
-								weightclass active = cnn_layers[i].matrix_values[k][a][b][c];
-								double weight_sum = 0;
-								System.out.println(data_width_heights[i]-cnn_layers[i].matrix_width_height);
-								for (int d=0;d<=data_width_heights[i]-cnn_layers[i].matrix_width_height;d++){
-									for (int e=0;e<=data_width_heights[i]-cnn_layers[i].matrix_width_height;e++){
-										weight_sum+=data[i][k][d][e].x_dev*data[i-1][k][d+b][e+c].y_value;
-									}
-								}
-								System.out.println("weight dev "+weight_sum);
-								active.weightdev += weight_sum;
-							}
-						}
-					}
-					
-				}
-				/*supposed to be backwards
-				//System.out.println("conv "+i);
-				for (int z=0;z<cnn_layers[i].depth;z++){
-					for (int k=0;k<data_depths[i];k++){
-						for (int a=0;a<cnn_layers[i].matrix_width_height;a++){
-							for (int b=0;b<cnn_layers[i].matrix_width_height;b++){
-								weightclass active = cnn_layers[i].matrix_values[z][k][a][b];
-								double sum=0;
-								for (int d=0;d<data[i+1][0].length;d++){
-									for (int e=0;e<data[i+1][0].length;e++){
-										double xdev = data[i+1][z][d][e].x_dev;
-										int x_ind = -cnn_layers[i].zero_padding+a+d*cnn_layers[i].stride;
-										int y_ind = -cnn_layers[i].zero_padding+b+e*cnn_layers[i].stride;
-										if (x_ind>=0&&y_ind>=0&&x_ind<data[i][a].length&&y_ind<data[i][a].length){
-											//System.out.println(x_ind+" "+y_ind+" "+data[i][k][x_ind][y_ind].y_value);
-											sum+=xdev*data[i][k][x_ind][y_ind].y_value;
-										}
-									}
-								}
-								active.weightdev = sum;
 							}
 						}
 					}
@@ -649,7 +588,52 @@ static Scanner scanner;
 			}
 			
 		}
-*/
+		*/
+		
+		/*
+		int data_depths[];
+		int data_width_heights[];
+		int layer_depths[];
+		int layer_width_heights[];
+		
+		cnn_layers
+		
+		// matrix_values[depth][numperdepth = data_depths[i]][height][width]
+		*/
+		
+		//Finding weight devs v2
+		
+		for (int a=cnn_layers.length-1;a>=0;a--){
+			cnn_layerclass active_layer = cnn_layers[a];
+			if (active_layer.function.compareTo("conv")==0){
+				for (int b=0;b<data_depths[a+1];b++){
+					for (int c=0;c<data_width_heights[a+1];c++){
+						for (int d=0;d<data_width_heights[a+1];d++){
+							double cur_devx = data[a+1][b][c][d].x_dev;
+							//Initial x value affected by weight matrix, at the top left
+							int init_x = -cnn_layers[a].zero_padding+d*cnn_layers[a].stride;
+							int init_y = -cnn_layers[a].zero_padding+c*cnn_layers[a].stride;
+							//System.out.println("current devx "+cur_devx+" at "+b+" "+c+" "+d+" has init "+init_x+" "+init_y);
+							
+							
+							for (int e=0;e<data_depths[a];e++){
+								for (int f=0;f<layer_width_heights[a];f++){
+									for (int g=0;g<layer_width_heights[a];g++){
+										int final_x = init_x+g;
+										int final_y = init_y+f;
+										if (final_x>=0&&final_x<data_width_heights[a]&&final_y>=0&&final_y<data_width_heights[a]){
+											//System.out.println("blamed "+data[a][e][final_y][final_x].y_value);
+											active_layer.matrix_values[b][e][f][g].weightdev+=cur_devx*data[a][e][final_y][final_x].y_value;
+										}
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+		
 	}
 	
 	void print_values(){
@@ -705,8 +689,8 @@ static Scanner scanner;
 		for (int i=0;i<cnn_layers.length;i++){
 			for (int z=0;z<cnn_layers[i].depth;z++){
 				for (int k=0;k<data_depths[i];k++){
-					for (int a=0;a<data_width_heights[i+1];a++){
-						for (int b=0;b<data_width_heights[i+1];b++){
+					for (int a=0;a<layer_width_heights[i];a++){
+						for (int b=0;b<layer_width_heights[i];b++){
 							if (cnn_layers[i].function.compareTo("conv")==0)System.out.print(cnn_layers[i].matrix_values[z][k][a][b].weightdev+"   ");
 						}
 						System.out.print('\n');
@@ -728,7 +712,6 @@ static Scanner scanner;
 		window.setResizable(false);
 		window.setIconImage(new ImageIcon("neural.jpg").getImage());
 		window.add(new VISUALIZATION());
-		window.addMouseListener(new mouseevent());
 		window.setVisible(true);
 		
 		weights_window = new JFrame("VISUALIZATION");
@@ -737,7 +720,6 @@ static Scanner scanner;
 		weights_window.setResizable(false);
 		weights_window.setIconImage(new ImageIcon("neural.jpg").getImage());
 		weights_window.add(new VISUALIZATION_WEIGHTS());
-		weights_window.addMouseListener(new mouseevent());
 		weights_window.setVisible(true);
 	}
 	
@@ -853,7 +835,6 @@ static Scanner scanner;
 					rect_y_ind=0;
 				}
 				else{
-					
 					grap.drawString("POOL", rect_x_ind, rect_y_ind+20);
 					rect_x_ind+=40;
 				}
@@ -861,18 +842,5 @@ static Scanner scanner;
 			}	
 			//System.out.println("Done drawing");
 		}
-	}
-	
-	private class mouseevent implements MouseListener{
-		// Toggles whether the weights of a certain node should be shown. Done by clicking the node.
-		public void mouseClicked(MouseEvent e) {
-			// If the mouse was clicked on one of the nodes, toggle the drawweight property of the node and repaint
-			// the window to reflect the change
-			System.out.println(e.getPoint());
-		}
-		public void mouseEntered(MouseEvent e) {}
-		public void mouseExited(MouseEvent e) {}
-		public void mousePressed(MouseEvent e) {}
-		public void mouseReleased(MouseEvent e) {}
 	}
 }

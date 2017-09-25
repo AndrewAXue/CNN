@@ -666,7 +666,7 @@ public class neural_net{
 				allstats.append("Cross-entropy<br>");
 			}
 		}
-		System.out.println(allstats);
+		//System.out.println(allstats);
 		allstats.append("</html>");
 		statistics.add(new JLabel(allstats.toString()));
 		/*
@@ -1011,15 +1011,23 @@ public class neural_net{
 	// Created to ensure same input used for automatic and manual testing. Simply feeds forward values
 	// and returns a "1" if the actual and expected are the same. Can also print the expected and actual
 	// values.
-	public int feed_and_set_expected(double input[][],double expected_prob[]){
-		double flatten[] = new double[input.length*input.length];
+	public int feed_and_set_expected(double input[][][],double expected_prob[]){
+		double flatten[] = new double[input.length*input[0].length*input[0][0].length];
 		for (int i=0;i<input.length;i++){
-			for (int k=0;k<input.length;k++){
-				flatten[i*input.length+k] = input[i][k];
+			for (int k=0;k<input[0].length;k++){
+				for (int a=0;a<input[0].length;a++){
+					flatten[i*input[0].length*input[0].length+k*input[0].length+a] = input[i][k][a];
+				}
 			}
 		}
 		
 		feedforward(flatten);
+		expected = expected_prob;
+		return 0;
+	}
+	
+	public int feed_and_set_expected(double input[],double expected_prob[]){
+		feedforward(input);
 		expected = expected_prob;
 		return 0;
 	}
@@ -1181,7 +1189,7 @@ public class neural_net{
 	
 	// Adjusts all the weights and biases using (stochastic) gradient descent. Must be called after back-
 	// propagation is called. 
-	protected void gradient_descent(int batch_size){
+	protected void gradient_descent(double learning_rate,int batch_size){
 		//Updating biases
 		for (int i=1;i<numlayer;i++){
 			for (int k=0;k<alllayersize[i];k++){
