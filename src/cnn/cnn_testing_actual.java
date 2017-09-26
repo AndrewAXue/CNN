@@ -109,7 +109,7 @@ public class cnn_testing_actual {
 		
 		
 		//int arr[] = {16*16,30,10};
-		int arr[] = {16*16*6,30,10};
+		int arr[] = {8*8*4,70,10};
 		full_connect = new neural_net(arr);
 		full_connect.learning_rate = 1;
 		full_connect.quadratic = false;
@@ -134,11 +134,11 @@ public class cnn_testing_actual {
 		window.repaint();
 		//window.addMouseListener(new mouseevent());
 		
-		int data_depths[] = {3,6,6};
-		int data_width_heights[] = {32,32,16};
-		String layer_types[] = {"conv","pool"};
-		int layer_depths[] = {6,1};
-		int layer_width_heights[] = {3,2};
+		int data_depths[] = {3,12,12,6,6,4};
+		int data_width_heights[] = {32,32,16,16,8,8};
+		String layer_types[] = {"conv","pool","conv","pool","conv"};
+		int layer_depths[] = {12,1,6,6,4};
+		int layer_width_heights[] = {3,2,3,2,3};
 		
 		/*
 		int data_depths[] = {3,6,6,1};
@@ -158,12 +158,12 @@ public class cnn_testing_actual {
 		please.batch_size = batch_size;
 		full_connect.batch = batch_size;
 		
-		double learning_rate = 2;
+		double learning_rate = 1;
 		
 		System.out.println("learning rate "+learning_rate);
 		
 		if (auto){
-			for (int a=0;a<2;a++){
+			for (int a=0;a<8;a++){
 				display_image_ind = 0;
 				while(display_image_ind<50000){
 					//System.out.println(display_image_ind);
